@@ -1,0 +1,20 @@
+[general]
+name=NGW Admin
+description=NextGIS Web administration and management within QGIS
+category=Plugins
+version=0.1.0
+qgisMinimumVersion=2.0
+
+author=NextGIS
+email=info@nextgis.org
+
+icon=icons/ngwadmin.png
+
+tags=vector,raster,web,import,export
+
+homepage=
+tracker=http://github.com/nextgis/ngwadmin/issues
+repository=http://github.com/nextgis/ngwadmin
+
+experimental=True
+deprecated=False
