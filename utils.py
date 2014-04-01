@@ -26,9 +26,11 @@ __copyright__ = '(C) 2014, NextGIS'
 __revision__ = '$Format:%H$'
 
 import os
+import re
 import json
 import uuid
 import zipfile
+import datetime
 
 import requests
 
@@ -100,4 +102,65 @@ def uploadShapeLayer(url, auth, group, layer, name):
     res = requests.post(url, auth=auth, data=json.dumps(params))
 
 def uploadPostgisLayer(url, auth, group, layer, name):
-    pass
+    metadata = layer.source().split(' ')
+
+    regex = re.compile("^host=.*")
+    pos = metadata.index([m.group(0) for l in metadata for m in [regex.search(l)] if m][0])
+    tmp = metadata[pos]
+    pos = tmp.find("=")
+    host = tmp[pos + 1:]
+
+    regex = re.compile("^dbname=.*")
+    pos = metadata.index([m.group(0) for l in metadata for m in [regex.search(l)] if m][0])
+    tmp = metadata[pos]
+    pos = tmp.find("=")
+    dbname = tmp[pos + 2:-1]
+
+    regex = re.compile("^user=.*")
+    pos = metadata.index([m.group(0) for l in metadata for m in [regex.search(l)] if m][0])
+    tmp = metadata[pos]
+    pos = tmp.find("=")
+    userName = tmp[pos + 2:-1]
+
+    regex = re.compile("^password=.*")
+    pos = metadata.index([m.group(0) for l in metadata for m in [regex.search(l)] if m][0])
+    tmp = metadata[pos]
+    pos = tmp.find("=")
+    password = tmp[pos + 2:-1]
+
+    regex = re.compile("^key=.*")
+    pos = metadata.index([m.group(0) for l in metadata for m in [regex.search(l)] if m][0])
+    tmp = metadata[pos]
+    pos = tmp.find("=")
+    key = tmp[pos + 2:-1]
+
+    regex = re.compile("^srid=.*")
+    pos = metadata.index([m.group(0) for l in metadata for m in [regex.search(l)] if m][0])
+    tmp = metadata[pos]
+    pos = tmp.find("=")
+    srid = tmp[pos + 1:]
+
+    regex = re.compile("^table=.*")
+    pos = metadata.index([m.group(0) for l in metadata for m in [regex.search(l)] if m][0])
+    tmp = metadata[pos]
+    pos = tmp.find("=")
+    tmp = tmp[pos + 2:-1].split('"."')
+    schema = tmp[0]
+    table = tmp[1]
+
+    regex = re.compile("^\(.*\)")
+    pos = metadata.index([m.group(0) for l in metadata for m in [regex.search(l)] if m][0])
+    column = metadata[pos][1:-1]
+
+    connName = host + ' - ' + dbname + ' - ' + datetime.now().isoformat()
+    params = dict(resource=dict(cls='postgis_connection', display_name=connName),
+                  postgis_connection=dict(hostname=host, database=dbname,
+                  username=userName, password=password))
+    url = url + '/resource/' + str(group) + '/child/'
+    pgConn = requests.post(url, auth=auth, data=json.dumps(params))
+
+    crs = dict(id=3857)
+    params = dict(resource=dict(cls='postgis_layer', display_name=name),
+                  postgis_layer=dict(srs=crs, fields='update', connection=pgConn.json(),
+                  table=table, schema=schema, column_id=key, column_geom=column))
+    res = requests.post(url, auth=auth, data=json.dumps(params))

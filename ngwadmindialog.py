@@ -163,9 +163,14 @@ class NgwAdminDialog(QDialog, Ui_Dialog):
             QMessageBox.warning(self, self.tr('Wrong name'), self.tr('Display name can not be empty.'))
             return
 
+        self.btnUpload.setEnabled(False)
+
         layerId = self.cmbLayers.itemData(self.cmbLayers.currentIndex())
         layer = utils.getLayerById(layerId)
-        if layer.providerType() == 'postgres':
-            utils.uploadPostgisLayer(url, auth, group, layer, dn)
-        elif layer.storageType() == 'ESRI Shapefile':
-            utils.uploadShapeLayer(url, auth, group, layer, dn)
+        try:
+            if layer.providerType() == 'postgres':
+                utils.uploadPostgisLayer(url, auth, group, layer, dn)
+            elif layer.storageType() == 'ESRI Shapefile':
+                utils.uploadShapeLayer(url, auth, group, layer, dn)
+        except:
+            self.btnUpload.setEnabled(True)
