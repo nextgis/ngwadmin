@@ -2,7 +2,7 @@
 name=NGW Admin
 description=NextGIS Web administration and management within QGIS
 category=Plugins
-version=0.1.0
+version=0.1.1
 qgisMinimumVersion=2.0
 
 author=NextGIS

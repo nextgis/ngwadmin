@@ -37,6 +37,13 @@ import requests
 from PyQt4.QtCore import *
 from qgis.core import *
 
+class NGWException(Exception):
+  def __init__(self, message):
+    self.message = message
+
+  def __str__(self):
+    return repr(self.message)
+
 def tempFileName():
     fName = os.path.join(QDir.tempPath(), str(uuid.uuid4()).replace('-', '') + '.zip')
     return fName
@@ -61,24 +68,42 @@ def getLayerById(layerId):
                 return None
 
 def getResourceGroups(url, auth):
-    res = requests.get(url + '/resource/0/child/', auth=auth)
-
-    if res.status_code != 200:
-        return None
-
-    groups = dict()
-    groups[0] = '<root group>'
-    for i in xrange(len(res.json())):
-        item = res.json()[i]['resource']
-        if item['cls'] == 'resource_group':
-            groups[item['id']] = item['display_name']
-
-    return groups
+    try:
+      print "getResourceGroups url: ", url, " auth: ", auth
+      res = requests.get(url + '/resource/0/child/', auth=auth)
+      #res = requests.get(url + '/api/layer_group/0/tree', auth=auth)
+      
+      
+      if res.status_code != 200:
+        ngwEx = NGWException("getResourceGroups error: " + "NGW server responce status code " + str(res.status_code) )
+        raise ngwEx
+      
+      groups = dict()
+      groups[0] = '<root group>'
+      for i in xrange(len(res.json())):
+          item = res.json()[i]['resource']
+          
+          if len(item) == 0:
+            ngwEx = NGWException("getResourceGroups error: " + "No information about resource grope. Perhaps incorrectly set the username and password.")
+            raise ngwEx
+          
+          if item['cls'] == 'resource_group':
+              groups[item['id']] = item['display_name']
+      
+      return groups
+    
+    except requests.exceptions.RequestException as reqEx:
+      ngwEx = NGWException("getResourceGroups error: " + reqEx.__class__.__name__ + str(reqEx) )
+      raise ngwEx
 
 def addResourceGroup(url, auth, parent, name):
     url = url + '/resource/' + str(parent) + '/child/'
     params = dict(resource=dict(cls='resource_group', display_name=name))
+    
+    print "addResourceGroup url: ", url
     res = requests.post(url, auth=auth, data=json.dumps(params))
+    
+    print "addResourceGroup request result: ", res.status_code 
 
 def uploadShapeLayer(url, auth, group, layer, name):
     tmp = tempFileName()

@@ -46,20 +46,47 @@ class NewConnectionDialog(QDialog, Ui_Dialog):
             self.leUrl.setText(settings.value(key + '/url', ''))
             self.leUser.setText(settings.value(key + '/user', ''))
             self.lePassword.setText(settings.value(key + '/password', ''))
-
+        
+        #self.leUrl.textEdited.connect(self.__validateURL)
+        #self.__validateURL()
+        
     def accept(self):
         if self.leName.text() == '':
             QMessageBox.warning(self, self.tr('Wrong name'), self.tr('Connection name can not be empty.'))
             return
-
+        
+        if self.leUrl.text() == '':
+            QMessageBox.warning(self, self.tr('Wrong URL'), self.tr('URl can not be empty.'))
+            return
+          
         settings = QSettings('NextGIS', 'ngwadmin')
         if self.connName is not None and self.connName != self.leName.text():
             settings.remove('/connections/' + self.connName)
 
         key = '/connections/' + self.leName.text()
-        settings.setValue(key + '/url', self.leUrl.text())
+        
+        url = self.leUrl.text()
+        url = url.strip("/")
+        
+        settings.setValue(key + '/url', url)
         settings.setValue(key + '/user', self.leUser.text())
         settings.setValue(key + '/password', self.lePassword.text())
 
+        settings.setValue('/ui/newConnection', self.leName.text())
+        
         QDialog.accept(self)
 
+    '''
+    def __validateURL(self):
+        url_re = 'http://[A-Z,a-z,\/,\.,\\,0-9]+'
+        regex = QRegExp(url_re, Qt.CaseInsensitive)
+        validator = QRegExpValidator(regex, None)
+        
+        result = validator.validate(self.leUrl.text(),0)
+        if (result[0] != 2):
+          print "URL is wrong result: ", result
+          self.leUrl.setStyleSheet("background: red")
+        else:
+          print "URL is right"
+          self.leUrl.setStyleSheet("background: green")
+    '''
