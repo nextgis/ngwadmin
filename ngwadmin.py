@@ -76,17 +76,17 @@ class NgwAdmin:
         self.actionAbout = QAction(QCoreApplication.translate("NgwAdmin", "About..."), self.iface.mainWindow())
         self.actionAbout.setIcon(QIcon(":/icons/about.png"))
 
-        self.iface.addPluginToMenu(QCoreApplication.translate('NgwAdmin', 'NGW Admin'), self.actionRun)
-        self.iface.addPluginToMenu(QCoreApplication.translate('NgwAdmin', 'NGW Admin'), self.actionAbout)
-        self.iface.addToolBarIcon(self.actionRun)
+        self.iface.addPluginToWebMenu(QCoreApplication.translate('NgwAdmin', 'NGW Admin'), self.actionRun)
+        self.iface.addPluginToWebMenu(QCoreApplication.translate('NgwAdmin', 'NGW Admin'), self.actionAbout)
+        self.iface.addWebToolBarIcon(self.actionRun)
 
         self.actionRun.triggered.connect(self.run)
         self.actionAbout.triggered.connect(self.about)
 
     def unload(self):
-        self.iface.removePluginVectorMenu(QCoreApplication.translate('NgwAdmin', 'NGW Admin'), self.actionRun)
-        self.iface.removePluginVectorMenu(QCoreApplication.translate('NgwAdmin', 'NGW Admin'), self.actionAbout)
-        self.iface.removeToolBarIcon(self.actionRun)
+        self.iface.removePluginWebMenu(QCoreApplication.translate('NgwAdmin', 'NGW Admin'), self.actionRun)
+        self.iface.removePluginWebMenu(QCoreApplication.translate('NgwAdmin', 'NGW Admin'), self.actionAbout)
+        self.iface.removeWebToolBarIcon(self.actionRun)
 
     def run(self):
         d = ngwadmindialog.NgwAdminDialog(self.iface)
