@@ -1,7 +1,7 @@
 [general]
 name=NGW Admin
 description=NextGIS Web administration and management within QGIS
-category=Plugins
+category=Web
 version=0.1.1
 qgisMinimumVersion=2.0
 
