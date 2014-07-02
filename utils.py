@@ -37,16 +37,18 @@ import requests
 from PyQt4.QtCore import *
 from qgis.core import *
 
-class NGWException(Exception):
-  def __init__(self, message):
-    self.message = message
+class NGWError(Exception):
+    def __init__(self, message, code=None):
+        self.message = unicode(message, 'utf-8')
+        self.status_code = (unicode(code) if code is not None else None)
 
-  def __str__(self):
-    return repr(self.message)
+    def __str__(self):
+        return 'STATUS CODE: %s\nMESSAGE: %s' % (self.status_code, self.message)
 
 def tempFileName():
     fName = os.path.join(QDir.tempPath(), str(uuid.uuid4()).replace('-', '') + '.zip')
     return fName
+
 
 def getMapLayers():
     layerMap = QgsMapLayerRegistry.instance().mapLayers()
@@ -58,6 +60,7 @@ def getMapLayers():
                     layers[layer.id()] = unicode(layer.name())
     return layers
 
+
 def getLayerById(layerId):
     layerMap = QgsMapLayerRegistry.instance().mapLayers()
     for name, layer in layerMap.iteritems():
@@ -67,43 +70,38 @@ def getLayerById(layerId):
             else:
                 return None
 
+
 def getResourceGroups(url, auth):
     try:
-      print "getResourceGroups url: ", url, " auth: ", auth
-      res = requests.get(url + '/resource/0/child/', auth=auth)
-      #res = requests.get(url + '/api/layer_group/0/tree', auth=auth)
-      
-      
-      if res.status_code != 200:
-        ngwEx = NGWException("getResourceGroups error: " + "NGW server responce status code " + str(res.status_code) )
-        raise ngwEx
-      
-      groups = dict()
-      groups[0] = '<root group>'
-      for i in xrange(len(res.json())):
-          item = res.json()[i]['resource']
-          
-          if len(item) == 0:
-            ngwEx = NGWException("getResourceGroups error: " + "No information about resource grope. Perhaps incorrectly set the username and password.")
-            raise ngwEx
-          
-          if item['cls'] == 'resource_group':
-              groups[item['id']] = item['display_name']
-      
-      return groups
-    
-    except requests.exceptions.RequestException as reqEx:
-      ngwEx = NGWException("getResourceGroups error: " + reqEx.__class__.__name__ + str(reqEx) )
-      raise ngwEx
+        res = requests.get(url + '/resource/0/child/', auth=auth)
+    except requests.exceptions.RequestException, e:
+        raise NGWError(e.message)
+
+    if res.status_code != 200:
+        raise NGWError('Cannot get list of resource groups', res.status_code)
+
+    groups = dict()
+    groups[0] = '<root group>'
+    for i in xrange(len(res.json())):
+        item = res.json()[i]['resource']
+        if item['cls'] == 'resource_group':
+            groups[item['id']] = item['display_name']
+
+    return groups
+
 
 def addResourceGroup(url, auth, parent, name):
     url = url + '/resource/' + str(parent) + '/child/'
     params = dict(resource=dict(cls='resource_group', display_name=name))
-    
-    print "addResourceGroup url: ", url
-    res = requests.post(url, auth=auth, data=json.dumps(params))
-    
-    print "addResourceGroup request result: ", res.status_code 
+    try:
+        res = requests.post(url, auth=auth, data=json.dumps(params))
+        if res.status_code not in [200, 201]:
+            raise NGWError(
+                'Cannot create resource. Server responce:\n\n%s' % res.content,
+                 res.status_code)
+    except requests.exceptions.RequestException, e:
+         raise NGWError(e.message)
+
 
 def uploadShapeLayer(url, auth, group, layer, name):
     tmp = tempFileName()
@@ -119,12 +117,26 @@ def uploadShapeLayer(url, auth, group, layer, name):
     zf.close()
 
     with open(tmp, 'rb') as f:
-        vl = requests.put(url + '/file_upload/upload', auth=auth, data=f)
+        try:
+            vl = requests.put(url + '/file_upload/upload', auth=auth, data=f)
+            if vl.status_code != 201:
+                raise NGWError(
+                    'Cannot create resource. Server responce:\n\n%s' % vl.content,
+                     vl.status_code)
+        except requests.exceptions.RequestException, e:
+            raise NGWError(e.message)
 
     crs = dict(id=3857)
     params = dict(resource=dict(cls='vector_layer', display_name=name), vector_layer=dict(srs=crs, source=vl.json()))
     url = url + '/resource/' + str(group) + '/child/'
-    res = requests.post(url, auth=auth, data=json.dumps(params))
+    try:
+        res = requests.post(url, auth=auth, data=json.dumps(params))
+        if res.status_code != 200:
+            raise NGWError('Request failed. Server responce:\n\n%s' % res.content,
+                     res.status_code)
+    except requests.exceptions.RequestException, e:
+        raise NGWError(e.message)
+
 
 def uploadPostgisLayer(url, auth, group, layer, name):
     metadata = layer.source().split(' ')
@@ -182,10 +194,24 @@ def uploadPostgisLayer(url, auth, group, layer, name):
                   postgis_connection=dict(hostname=host, database=dbname,
                   username=userName, password=password))
     url = url + '/resource/' + str(group) + '/child/'
-    pgConn = requests.post(url, auth=auth, data=json.dumps(params))
+    try:
+        pgConn = requests.post(url, auth=auth, data=json.dumps(params))
+        if pgConn.status_code != 201:
+            raise NGWError(
+                'Cannot create resource. Server responce:\n\n%s' % pgConn.content,
+                 pgConn.status_code)
+    except requests.exceptions.RequestException, e:
+        raise NGWError(e.message)
 
     crs = dict(id=3857)
     params = dict(resource=dict(cls='postgis_layer', display_name=name),
                   postgis_layer=dict(srs=crs, fields='update', connection=pgConn.json(),
                   table=table, schema=schema, column_id=key, column_geom=column))
-    res = requests.post(url, auth=auth, data=json.dumps(params))
+    try:
+        res = requests.post(url, auth=auth, data=json.dumps(params))
+        if res.status_code != 201:
+            raise NGWError(
+                'Cannot create resource. Server responce:\n\n%s' % res.content,
+                 res.status_code)
+    except requests.exceptions.RequestException, e:
+        raise NGWError(e.message)

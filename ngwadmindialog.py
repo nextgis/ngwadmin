@@ -37,7 +37,7 @@ import newconnectiondialog
 
 from ui.ui_ngwadmindialogbase import Ui_Dialog
 
-import utils
+from utils import *
 
 
 class NgwAdminDialog(QDialog, Ui_Dialog):
@@ -52,20 +52,19 @@ class NgwAdminDialog(QDialog, Ui_Dialog):
         self.btnDelete.clicked.connect(self.deleteConnection)
         self.btnNewGroup.clicked.connect(self.createGroup)
         self.btnUpload.clicked.connect(self.uploadLayer)
-        self.cmbConnections.currentIndexChanged.connect(self.connectionChanged)
-        self.cmbResources.currentIndexChanged.connect(self.resourceChanged)
+        self.cmbConnections.currentIndexChanged.connect(self.populateResourceGroups)
         self.cmbLayers.currentIndexChanged.connect(self.layerChanged)
 
-        self.btnNewGroup.setDisabled(True)
-        self.btnUpload.setDisabled(True)
-        
         self.manageGui()
 
     def manageGui(self):
-        
         self.populateConnections()
-        
-        layers = utils.getMapLayers()
+
+        settings = QSettings("NextGIS", "ngwadmin")
+        lastConnection = settings.value('/ui/lastConnection', '')
+        self.cmbConnections.setCurrentIndex(self.cmbConnections.findText(lastConnection))
+
+        layers = getMapLayers()
         for k, v in layers.iteritems():
             self.cmbLayers.addItem(v, k)
 
@@ -87,10 +86,6 @@ class NgwAdminDialog(QDialog, Ui_Dialog):
         del dlg
 
     def deleteConnection(self):
-        self.btnNew.setDisabled(True)
-        self.btnEdit.setDisabled(True)
-        self.btnDelete.setDisabled(True)
-          
         settings = QSettings("NextGIS", "ngwadmin")
         key = '/connections/' + self.cmbConnections.currentText()
         settings.remove(key + '/url')
@@ -98,82 +93,53 @@ class NgwAdminDialog(QDialog, Ui_Dialog):
         settings.remove(key + '/password')
         settings.remove(key)
         self.populateConnections()
-        
-        self.btnNew.setDisabled(False)
-        self.btnEdit.setDisabled(False)
-        self.btnDelete.setDisabled(False)
-    
+
     def populateConnections(self):
-        self.cmbResources.clear()
-        
         self.cmbConnections.blockSignals(True)
         self.cmbConnections.clear()
         settings = QSettings("NextGIS", "ngwadmin")
         settings.beginGroup('/connections')
         self.cmbConnections.addItems(settings.childGroups())
-        self.cmbConnections.setCurrentIndex(-1)
         self.cmbConnections.blockSignals(False)
         settings.endGroup()
 
         lastConnection = settings.value('/ui/lastConnection', '')
-        lastConnectionIndex = self.cmbConnections.findText(lastConnection)
-        
-        newConnectionName = settings.value('/ui/newConnection', '')
-        newConnectionIndex = self.cmbConnections.findText(newConnectionName)
-        settings.remove('/ui/newConnection')
-        
-        
-        if newConnectionIndex != -1:
-          self.cmbConnections.setCurrentIndex(newConnectionIndex)
-        elif lastConnectionIndex == -1 and self.cmbConnections.count() > 0:
-          self.cmbConnections.setCurrentIndex(0)
+        idx = self.cmbConnections.findText(lastConnection)
+        if idx == -1 and self.cmbConnections.count() > 0:
+            self.cmbConnections.setCurrentIndex(0)
         else:
-          self.cmbConnections.setCurrentIndex(lastConnectionIndex)
-        
+            self.cmbConnections.setCurrentIndex(idx)
+
+        self.populateResourceGroups()
+
         self.btnEdit.setDisabled(self.cmbConnections.count() == 0)
         self.btnDelete.setDisabled(self.cmbConnections.count() == 0)
         self.cmbConnections.setDisabled(self.cmbConnections.count() == 0)
+        self.btnNewGroup.setDisabled(self.cmbConnections.count() == 0)
+        self.btnUpload.setDisabled(self.cmbConnections.count() == 0)
 
-    def connectionChanged(self):
+    def layerChanged(self):
+        layerId = self.cmbLayers.itemData(self.cmbLayers.currentIndex())
+        layer = getLayerById(layerId)
+
+        self.leDisplayName.setText(layer.name())
+
+    def populateResourceGroups(self):
         self.cmbResources.clear()
-        self.__loadResourceGroups()
-    
-    def __loadResourceGroups(self):
+
+        if self.cmbConnections.currentIndex() == -1:
+            return
+
         settings = QSettings("NextGIS", "ngwadmin")
-        
         key = '/connections/' + self.cmbConnections.currentText()
         url = settings.value(key + '/url', '')
         auth = (settings.value(key + '/user', ''), settings.value(key + '/password', ''))
-        
-        try:
-          groups = utils.getResourceGroups(url, auth)
-          for k, v in groups.iteritems():
-              self.cmbResources.addItem(v, k)
-        except utils.NGWException as ngwEx:
-          QMessageBox.warning(self, self.tr('NGW connection exception'), self.tr('Get resource groups error!\nMessage:\n\t') + ngwEx.message)
 
-    def resourceChanged(self):
-        if self.cmbResources.currentIndex() == -1:
-          self.btnNewGroup.setDisabled(True)
-        else:
-          self.btnNewGroup.setDisabled(False)
-        
-        if self.cmbResources.currentIndex() == -1 or self.cmbLayers.currentIndex() == -1:
-          self.btnUpload.setDisabled(True)
-        else:
-          self.btnUpload.setDisabled(False)
-    
-    def layerChanged(self):
-        if self.cmbResources.currentIndex() == -1 or self.cmbLayers.currentIndex() == -1:
-          self.btnUpload.setDisabled(True)
-        else:
-          self.btnUpload.setDisabled(False)
-          
-        layerId = self.cmbLayers.itemData(self.cmbLayers.currentIndex())
-        layer = utils.getLayerById(layerId)
+        groups = getResourceGroups(url, auth)
+        if groups is not None:
+            for k, v in groups.iteritems():
+                self.cmbResources.addItem(v, k)
 
-        self.leDisplayName.setText(layer.name())
-    
     def createGroup(self):
         groupName = QInputDialog.getText(self, self.tr('Enter group name'), self.tr('Group name'))[0]
         if groupName == '':
@@ -182,16 +148,18 @@ class NgwAdminDialog(QDialog, Ui_Dialog):
         settings = QSettings("NextGIS", "ngwadmin")
         key = '/connections/' + self.cmbConnections.currentText()
         url = settings.value(key + '/url', '')
-        
+
         auth = (settings.value(key + '/user', ''), settings.value(key + '/password', ''))
         parent = self.cmbResources.itemData(self.cmbResources.currentIndex())
 
-        utils.addResourceGroup(url, auth, parent, groupName)
-        self.connectionChanged()
+        try:
+            addResourceGroup(url, auth, parent, groupName)
+        except NGWError, e:
+            QMessageBox.critical(self, self.tr('Group creation error'), e.message)
+
+        self.populateResourceGroups()
 
     def uploadLayer(self):
-        self.btnUpload.setDisabled(True)
-        
         settings = QSettings("NextGIS", "ngwadmin")
         key = '/connections/' + self.cmbConnections.currentText()
         url = settings.value(key + '/url', '')
@@ -201,15 +169,16 @@ class NgwAdminDialog(QDialog, Ui_Dialog):
         if dn == '':
             QMessageBox.warning(self, self.tr('Wrong name'), self.tr('Display name can not be empty.'))
             return
+        self.btnUpload.setEnabled(False)
 
         layerId = self.cmbLayers.itemData(self.cmbLayers.currentIndex())
-        layer = utils.getLayerById(layerId)
+        layer = getLayerById(layerId)
         try:
             if layer.providerType() == 'postgres':
-                utils.uploadPostgisLayer(url, auth, group, layer, dn)
+                uploadPostgisLayer(url, auth, group, layer, dn)
             elif layer.storageType() == 'ESRI Shapefile':
-                utils.uploadShapeLayer(url, auth, group, layer, dn)
-        except:
-            pass
+                uploadShapeLayer(url, auth, group, layer, dn)
+        except NGWError, e:
+            QMessageBox.critical(self, self.tr('Upload error'), e.message)
         finally:
-            self.btnUpload.setDisabled(False)
+            self.btnUpload.setEnabled(True)
