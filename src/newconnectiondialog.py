@@ -16,6 +16,8 @@
 *                                                                         *
 ***************************************************************************
 """
+from PyQt4 import uic
+from os import path
 
 __author__ = 'NextGIS'
 __date__ = 'March 2014'
@@ -28,10 +30,10 @@ __revision__ = '$Format:%H$'
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
-from ui.ui_newconnectiondialogbase import Ui_Dialog
+FORM_CLASS, _ = uic.loadUiType(path.join(
+    path.dirname(__file__), 'ui/', 'newconnectiondialogbase.ui'))
 
-
-class NewConnectionDialog(QDialog, Ui_Dialog):
+class NewConnectionDialog(QDialog, FORM_CLASS):
     def __init__(self, parent, connName=None):
         QDialog.__init__(self, parent)
         self.setupUi(self)

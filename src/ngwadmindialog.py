@@ -16,6 +16,10 @@
 *                                                                         *
 ***************************************************************************
 """
+from os import path
+
+from PyQt4 import uic
+
 
 __author__ = 'NextGIS'
 __date__ = 'March 2014'
@@ -25,22 +29,16 @@ __copyright__ = '(C) 2014, NextGIS'
 
 __revision__ = '$Format:%H$'
 
-import locale
-import operator
-
-from PyQt4.QtCore import *
 from PyQt4.QtGui import *
-
-from qgis.core import *
 
 import newconnectiondialog
 
-from ui.ui_ngwadmindialogbase import Ui_Dialog
+FORM_CLASS, _ = uic.loadUiType(path.join(
+    path.dirname(__file__), 'ui/', 'ngwadmindialogbase.ui'))
 
 from utils import *
 
-
-class NgwAdminDialog(QDialog, Ui_Dialog):
+class NgwAdminDialog(QDialog, FORM_CLASS):
     def __init__(self, iface):
         QDialog.__init__(self)
         self.setupUi(self)

@@ -16,6 +16,7 @@
 *                                                                         *
 ***************************************************************************
 """
+from os import path
 
 __author__ = 'NextGIS'
 __date__ = 'March 2014'
@@ -25,8 +26,6 @@ __copyright__ = '(C) 2014, NextGIS'
 
 __revision__ = '$Format:%H$'
 
-import os
-
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
@@ -34,6 +33,8 @@ from qgis.core import *
 
 import ngwadmindialog
 import aboutdialog
+
+icon_path = path.join(path.dirname(__file__), 'icons')
 
 class NgwAdmin:
     def __init__(self, iface):
@@ -72,9 +73,9 @@ class NgwAdmin:
             return None
 
         self.actionRun = QAction(QCoreApplication.translate("NgwAdmin", "NGW Admin"), self.iface.mainWindow())
-        self.actionRun.setIcon(QIcon(":/icons/ngwadmin.png"))
+        self.actionRun.setIcon(QIcon(path.join(icon_path, "ngwadmin.png")))
         self.actionAbout = QAction(QCoreApplication.translate("NgwAdmin", "About..."), self.iface.mainWindow())
-        self.actionAbout.setIcon(QIcon(":/icons/about.png"))
+        self.actionAbout.setIcon(QIcon(path.join(icon_path, "about.png")))
 
         self.iface.addPluginToWebMenu(QCoreApplication.translate('NgwAdmin', 'NGW Admin'), self.actionRun)
         self.iface.addPluginToWebMenu(QCoreApplication.translate('NgwAdmin', 'NGW Admin'), self.actionAbout)

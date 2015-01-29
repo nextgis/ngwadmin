@@ -16,6 +16,7 @@
 *                                                                         *
 ***************************************************************************
 """
+from PyQt4 import uic
 
 __author__ = 'NextGIS'
 __date__ = 'March 2014'
@@ -27,26 +28,27 @@ __revision__ = '$Format:%H$'
 
 import os
 import ConfigParser
+from os import path
 
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
-from ui.ui_aboutdialogbase import Ui_Dialog
+FORM_CLASS, _ = uic.loadUiType(path.join(
+    path.dirname(__file__), 'ui/', 'aboutdialogbase.ui'))
 
-import resources_rc
+icon_path = path.join(path.dirname(__file__), 'icons')
 
-
-class AboutDialog(QDialog, Ui_Dialog):
+class AboutDialog(QDialog, FORM_CLASS):
     def __init__(self):
         QDialog.__init__(self)
         self.setupUi(self)
 
         self.btnHelp = self.buttonBox.button(QDialogButtonBox.Help)
 
-        self.lblLogo.setPixmap(QPixmap(":/icons/ngwadmin.png"))
+        self.lblLogo.setPixmap(QPixmap(path.join(icon_path, "ngwadmin.png")))
 
         cfg = ConfigParser.SafeConfigParser()
-        cfg.read(os.path.join(os.path.dirname(__file__), "metadata.txt"))
+        cfg.read(os.path.join(path.dirname(__file__), "metadata.txt"))
         version = cfg.get("general", "version")
 
         self.lblVersion.setText(self.tr("Version: %s") % (version))
